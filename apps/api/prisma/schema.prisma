@@ -1,0 +1,66 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  phone     String?
+  role      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  contractor Contractor?
+}
+
+model Contractor {
+  id            String    @id @default(uuid())
+  user          User      @relation(fields: [userId], references: [id])
+  userId        String    @unique
+  businessName  String
+  experience    Int       @default(0)
+  successRate   Float     @default(0)
+  responseTime  Int       @default(0)
+  jobs          Job[]
+}
+
+model Lead {
+  id          String   @id @default(uuid())
+  customerId  String
+  serviceType String
+  description String
+  location    String
+  budgetMin   Int
+  budgetMax   Int
+  urgency     String
+  status      String
+  createdAt   DateTime @default(now())
+  job         Job?
+}
+
+model Job {
+  id           String      @id @default(uuid())
+  lead         Lead        @relation(fields: [leadId], references: [id])
+  leadId       String      @unique
+  contractor   Contractor  @relation(fields: [contractorId], references: [id])
+  contractorId String
+  customerId   String
+  status       String
+  milestones   Milestone[]
+}
+
+model Milestone {
+  id          String   @id @default(uuid())
+  job         Job      @relation(fields: [jobId], references: [id])
+  jobId       String
+  title       String
+  description String
+  amount      Int
+  dueDate     DateTime
+  status      String
+  completedAt DateTime?
+}

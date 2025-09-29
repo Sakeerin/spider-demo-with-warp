@@ -1,0 +1,65 @@
+Common commands (PowerShell)
+•  Rebuild and start:
+◦  docker compose up -d --build
+•  View logs:
+◦  docker compose logs -f api
+◦  docker compose logs -f web
+•  Stop:
+◦  docker compose down
+•  Reset DB data:
+◦  docker compose down -v
+
+Done. I added Leads and Contractors CRUD endpoints to the NestJS API, wired them into the app, and verified they work with your seeded data.
+
+What I added
+•  Prisma service
+◦  src/prisma/prisma.service.ts: Centralized Prisma client for DI.
+•  Leads module
+◦  src/leads/leads.module.ts
+◦  src/leads/leads.service.ts: Prisma-backed CRUD
+◦  src/leads/leads.controller.ts: Endpoints under /api/leads
+•  Contractors module
+◦  src/contractors/contractors.module.ts
+◦  src/contractors/contractors.service.ts: Prisma-backed CRUD
+◦  src/contractors/contractors.controller.ts: Endpoints under /api/contractors
+•  App module wiring
+◦  src/app.module.ts now imports LeadsModule and ContractorsModule
+
+Endpoints
+•  GET /api/leads
+•  GET /api/leads/:id
+•  POST /api/leads
+•  PATCH /api/leads/:id
+•  DELETE /api/leads/:id
+•  GET /api/contractors
+•  GET /api/contractors/:id
+•  POST /api/contractors
+•  PATCH /api/contractors/:id
+•  DELETE /api/contractors/:id
+
+Verification
+•  I rebuilt and restarted the API container and tested the endpoints locally on your machine:
+◦  GET http://localhost:3001/api/leads returned the seeded lead.
+◦  GET http://localhost:3001/api/contractors returned the seeded contractor.
+
+How to try locally (PowerShell)
+•  List leads
+◦  powershell -NoLogo -NoProfile -Command "Invoke-RestMethod -Uri 'http://localhost:3001/api/leads' | ConvertTo-Json -Depth 4"
+•  Create a lead
+◦  powershell -NoLogo -NoProfile -Command "$b=@{ customerId='{{customerId}}'; serviceType='painting'; description='House painting'; location='Bangkok'; budgetMin=50000; budgetMax=80000; urgency='low'; status='new' } | ConvertTo-Json | Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/api/leads' -ContentType 'application/json' -Body $input"
+◦  Replace {{customerId}} with an existing user ID (from the seed or DB).
+•  List contractors
+◦  powershell -NoLogo -NoProfile -Command "Invoke-RestMethod -Uri 'http://localhost:3001/api/contractors' | ConvertTo-Json -Depth 4"
+•  Create a contractor
+◦  powershell -NoLogo -NoProfile -Command "$b=@{ userId='{{userId}}'; businessName='Beta Co.'; experience=3; successRate=0.75; responseTime=4 } | ConvertTo-Json | Invoke-RestMethod -Method Post -Uri 'http://localhost:3001/api/contractors' -ContentType 'application/json' -Body $input"
+◦  Replace {{userId}} with an existing user ID.
+
+Notes
+•  Simple NotFound responses are returned when the resource doesn’t exist.
+•  No validation decorators yet; if you want strict validation, I can add class-validator and validation pipes.
+
+Next steps I can take
+•  Add DTO validation (class-validator) and global ValidationPipe.
+•  Expand schemas to better reflect requirements (e.g., ratings, portfolios).
+•  Add pagination and filtering (especially for contractors per Requirement 12).
+•  Add E2E tests for endpoints and seed data checks.

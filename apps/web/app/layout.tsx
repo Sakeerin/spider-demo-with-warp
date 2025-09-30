@@ -8,6 +8,7 @@ export const metadata = {
 };
 
 import Header from './components/Header';
+import FloatingContacts from './components/FloatingContacts';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-screen bg-gray-50 text-gray-900">
         <Header />
         {children}
+        <FloatingContacts />
       </body>
     </html>
   );

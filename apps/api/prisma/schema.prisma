@@ -18,14 +18,20 @@ model User {
 }
 
 model Contractor {
-  id            String    @id @default(uuid())
-  user          User      @relation(fields: [userId], references: [id])
-  userId        String    @unique
-  businessName  String
-  experience    Int       @default(0)
-  successRate   Float     @default(0)
-  responseTime  Int       @default(0)
-  jobs          Job[]
+  id               String    @id @default(uuid())
+  user             User      @relation(fields: [userId], references: [id])
+  userId           String    @unique
+  businessName     String
+  experience       Int       @default(0)
+  successRate      Float     @default(0)
+  responseTime     Int       @default(0)
+  services         String[]  @default([])
+  serviceAreas     String[]  @default([])
+  verification     VerificationStatus @default(PENDING)
+  verificationNote String?
+  jobs             Job[]
+  assignments      LeadAssignment[]
+  matchLogs        MatchLog[]
 }
 
 model Lead {
@@ -40,6 +46,8 @@ model Lead {
   status      String
   createdAt   DateTime @default(now())
   job         Job?
+  assignments LeadAssignment[]
+  matchLogs   MatchLog[]
 }
 
 model Job {
@@ -63,4 +71,75 @@ model Milestone {
   dueDate     DateTime
   status      String
   completedAt DateTime?
+}
+
+// Admin flow models
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AssignmentStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  ASSIGNED
+}
+
+model LeadAssignment {
+  id           String            @id @default(uuid())
+  lead         Lead              @relation(fields: [leadId], references: [id])
+  leadId       String
+  contractor   Contractor        @relation(fields: [contractorId], references: [id])
+  contractorId String
+  status       AssignmentStatus  @default(OFFERED)
+  reason       String?
+  createdAt    DateTime          @default(now())
+
+  @@unique([leadId, contractorId], name: "leadId_contractorId")
+}
+
+model MatchLog {
+  id           String     @id @default(uuid())
+  lead         Lead       @relation(fields: [leadId], references: [id])
+  leadId       String
+  contractor   Contractor @relation(fields: [contractorId], references: [id])
+  contractorId String
+  score        Float
+  reasons      String[]   @default([])
+  createdAt    DateTime   @default(now())
+}
+
+model Promotion {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  image       String?
+  validFrom   DateTime?
+  validTo     DateTime?
+  serviceTypes String[]  @default([])
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model News {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  image       String?
+  isActive    Boolean  @default(true)
+  publishedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String
+  message     String?
+  createdAt   DateTime  @default(now())
 }

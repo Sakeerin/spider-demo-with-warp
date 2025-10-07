@@ -46,6 +46,13 @@ services:
       REDIS_URL: redis://redis:6379
       ADMIN_API_KEY: demo-key
       ADMIN_JWT_SECRET: supersecretjwt
+      # S3 (leave blank for local uploads in dev)
+      AWS_S3_BUCKET: ""
+      AWS_S3_REGION: ""
+      AWS_ACCESS_KEY_ID: ""
+      AWS_SECRET_ACCESS_KEY: ""
+      # SLA: minutes before first-touch alert
+      LEAD_SLA_FIRST_TOUCH_MIN: 60
     ports:
       - "3001:3001"
 
@@ -59,7 +66,9 @@ services:
         condition: service_started
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_URL: http://api:3001
+      # Client-side code runs in the browser; must use host-accessible URL
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      # For any server-side calls from within the container, use the service name
       API_INTERNAL_URL: http://api:3001
     ports:
       - "3000:3000"

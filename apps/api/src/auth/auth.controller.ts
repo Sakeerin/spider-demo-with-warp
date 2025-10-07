@@ -1,6 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ApiTags } from '@nestjs/swagger';
+import { JwtGuard } from './jwt.guard';
 
 @ApiTags('Admin Auth')
 @Controller('admin/auth')
@@ -16,5 +17,12 @@ export class AuthController {
     const role = body.role || 'admin';
     const token = this.jwt.sign({ role });
     return { ok: true, token, role };
+  }
+
+  @Get('me')
+  @UseGuards(JwtGuard)
+  me(@Req() req: any) {
+    const role = req.user?.role || null;
+    return { ok: true, role };
   }
 }

@@ -15,6 +15,10 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   contractor Contractor?
+
+  salesLeads Lead[]        @relation("UserSalesLeads")
+  ownedTasks LeadTask[]    @relation("UserLeadTasks")
+  activities LeadActivity[] @relation("UserActivities")
 }
 
 model Contractor {
@@ -35,19 +39,116 @@ model Contractor {
 }
 
 model Lead {
+  id            String   @id @default(uuid())
+  accountNumber Int      @default(autoincrement()) @unique
+  customerId    String
+  company       Company? @relation(fields: [companyId], references: [id])
+  companyId     String?
+  contactName   String?
+  contactPhone  String?
+  mobilePhone   String?
+  email         String?
+  contactAt     DateTime?
+  source        String?
+  sales         User?    @relation(name: "UserSalesLeads", fields: [salesId], references: [id])
+  salesId       String?
+  serviceType   String
+  description   String
+  location      String
+  budgetMin     Int
+  budgetMax     Int
+  urgency       String
+  status        String
+  followUpAt    DateTime?
+  detail        String?
+  productType   String?
+  adType        String?
+  remark        String?
+  active        Boolean  @default(true)
+  archivedAt    DateTime?
+  score         Int      @default(0)
+  scoreBand     String?  // High/Medium/Low
+  blacklisted   Boolean  @default(false)
+  optOut        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt @default(now())
+
+  job           Job?
+  assignments   LeadAssignment[]
+  matchLogs     MatchLog[]
+  attachments   LeadAttachment[]
+  tasks         LeadTask[]
+  activities    LeadActivity[]
+  labels        LeadLabel[]
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  email     String?
+  phone     String?
+  address   String?
+  leads     Lead[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TaskStatus {
+  OPEN
+  DONE
+  CANCELLED
+}
+
+model LeadAttachment {
   id          String   @id @default(uuid())
-  customerId  String
-  serviceType String
-  description String
-  location    String
-  budgetMin   Int
-  budgetMax   Int
-  urgency     String
-  status      String
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  leadId      String
+  fileName    String
+  url         String
+  contentType String?
+  size        Int?
   createdAt   DateTime @default(now())
-  job         Job?
-  assignments LeadAssignment[]
-  matchLogs   MatchLog[]
+}
+
+model LeadTask {
+  id        String     @id @default(uuid())
+  lead      Lead       @relation(fields: [leadId], references: [id])
+  leadId    String
+  title     String
+  dueAt     DateTime?
+  owner     User?      @relation(name: "UserLeadTasks", fields: [ownerId], references: [id])
+  ownerId   String?
+  status    TaskStatus @default(OPEN)
+  reminderAt DateTime?
+  createdAt DateTime   @default(now())
+}
+
+model LeadActivity {
+  id          String   @id @default(uuid())
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  leadId      String
+  type        String
+  message     String?
+  meta        Json?
+  createdBy   User?    @relation(name: "UserActivities", fields: [createdById], references: [id])
+  createdById String?
+  createdAt   DateTime @default(now())
+}
+
+model Label {
+  id    String @id @default(uuid())
+  name  String @unique
+  color String?
+  leads LeadLabel[]
+}
+
+model LeadLabel {
+  lead   Lead  @relation(fields: [leadId], references: [id])
+  leadId String
+  label  Label @relation(fields: [labelId], references: [id])
+  labelId String
+
+  @@id([leadId, labelId])
 }
 
 model Job {
@@ -113,23 +214,27 @@ model MatchLog {
 }
 
 model Promotion {
-  id          String    @id @default(uuid())
-  title       String
-  description String
-  image       String?
-  validFrom   DateTime?
-  validTo     DateTime?
+  id           String    @id @default(uuid())
+  title        String
+  description  String
+  category     String?
+  image        String?
+  images       String[]  @default([])
+  validFrom    DateTime?
+  validTo      DateTime?
   serviceTypes String[]  @default([])
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
 model News {
   id          String   @id @default(uuid())
   title       String
   content     String
+  category    String?
   image       String?
+  images      String[] @default([])
   isActive    Boolean  @default(true)
   publishedAt DateTime @default(now())
 }

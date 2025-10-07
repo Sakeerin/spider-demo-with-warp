@@ -151,8 +151,20 @@ export class AdminService {
   }
 
   // Promotions CRUD
-  listPromotions() {
-    return this.prisma.promotion.findMany({ orderBy: { createdAt: 'desc' } });
+  listPromotions(q?: string, category?: string) {
+    const where: Prisma.PromotionWhereInput = {
+      AND: [
+        category ? { category: { contains: category, mode: 'insensitive' } } : {},
+        q ? { OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+        ] } : {},
+      ],
+    };
+    return this.prisma.promotion.findMany({ where, orderBy: { createdAt: 'desc' } });
+  }
+  getPromotion(id: string) {
+    return this.prisma.promotion.findUnique({ where: { id } });
   }
   createPromotion(body: any) {
     return this.prisma.promotion.create({ data: body });
@@ -165,8 +177,20 @@ export class AdminService {
   }
 
   // News CRUD
-  listNews() {
-    return this.prisma.news.findMany({ orderBy: { publishedAt: 'desc' } });
+  listNews(q?: string, category?: string) {
+    const where: Prisma.NewsWhereInput = {
+      AND: [
+        category ? { category: { contains: category, mode: 'insensitive' } } : {},
+        q ? { OR: [
+          { title: { contains: q, mode: 'insensitive' } },
+          { content: { contains: q, mode: 'insensitive' } },
+        ] } : {},
+      ],
+    };
+    return this.prisma.news.findMany({ where, orderBy: { publishedAt: 'desc' } });
+  }
+  getNews(id: string) {
+    return this.prisma.news.findUnique({ where: { id } });
   }
   createNews(body: any) {
     return this.prisma.news.create({ data: body });

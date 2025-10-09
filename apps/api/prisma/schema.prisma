@@ -59,6 +59,8 @@ model Lead {
   budgetMax     Int
   urgency       String
   status        String
+  jobStatus     String?
+  channel       String?
   followUpAt    DateTime?
   detail        String?
   productType   String?

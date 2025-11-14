@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -26,32 +26,84 @@ const leadSchema = z.object({
   remark: z.string().optional(),
 });
 
+type LeadFormData = z.infer<typeof leadSchema>;
+
+interface SalesUser {
+  id: string;
+  name?: string;
+  email: string;
+}
+
 export default function CreateLeadPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<{ id: string; accountNumber?: string } | null>(null);
+  const [salesUsers, setSalesUsers] = useState<SalesUser[]>([]);
+  const [loadingSales, setLoadingSales] = useState(true);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({
+  } = useForm<LeadFormData>({
     resolver: zodResolver(leadSchema),
     defaultValues: {
       jobStatus: "First Contact",
     },
   });
 
-  const onSubmit = async (data) => {
+  // Load sales users from API
+  useEffect(() => {
+    async function loadSalesUsers() {
+      try {
+        const token = localStorage.getItem("adminToken");
+        if (!token) {
+          router.push("/admin/login");
+          return;
+        }
+
+        const res = await fetch(`${base}/api/admin/crm/leads/sales-users`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (res.status === 401) {
+          router.push("/admin/login");
+          return;
+        }
+
+        if (res.ok) {
+          const text = await res.text();
+          const data = text ? JSON.parse(text) : { data: [] };
+          setSalesUsers(data.data || []);
+        }
+      } catch (err) {
+        console.error("Failed to load sales users:", err);
+      } finally {
+        setLoadingSales(false);
+      }
+    }
+
+    loadSalesUsers();
+  }, [router]);
+
+  const onSubmit = async (data: LeadFormData) => {
     setIsSubmitting(true);
     setError(null);
+    setSuccess(null);
+    setDuplicate(null);
 
     try {
       const token = localStorage.getItem("adminToken");
       if (!token) {
-        window.location.href = "/admin/login";
+        router.push("/admin/login");
         return;
       }
+
+      // Map sales name to ID
+      const salesUser = salesUsers.find(s => (s.name || s.email) === data.sales);
+      const salesId = salesUser?.id || null;
 
       // Map form data to API format
       const payload = {
@@ -63,7 +115,7 @@ export default function CreateLeadPage() {
         email: data.email || undefined,
         contactAt: data.contactDate || undefined,
         source: data.channel || data.adType,
-        salesId: data.sales, // Note: This should ideally be mapped to actual user ID
+        salesId: salesId,
         status: data.jobStatus,
         followUpAt: data.followUpDate || undefined,
         detail: data.jobDetail,
@@ -81,15 +133,49 @@ export default function CreateLeadPage() {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) {
-        throw new Error(`Failed to create lead: ${res.statusText}`);
+      // Handle authentication errors
+      if (res.status === 401) {
+        router.push("/admin/login");
+        return;
       }
 
-      const result = await res.json();
+      // Handle other HTTP errors
+      if (!res.ok) {
+        const errorText = await res.text();
+        let errorData;
+        try {
+          errorData = errorText ? JSON.parse(errorText) : {};
+        } catch {
+          errorData = {};
+        }
+        throw new Error(errorData.message || `Failed to create lead: ${res.statusText}`);
+      }
+
+      // Parse response
+      const text = await res.text();
+      const result = text ? JSON.parse(text) : {};
 
       if (result?.lead?.id) {
-        alert("Lead created successfully!");
-        router.push(`/leads/${result.lead.id}`);
+        // Check for duplicate leads
+        if (result.duplicate) {
+          setDuplicate({
+            id: result.duplicate.id,
+            accountNumber: result.duplicate.accountNumber
+          });
+        }
+
+        setSuccess("Lead created successfully!");
+
+        // Redirect after a short delay to show success message
+        setTimeout(() => {
+          const leadId = String(result.lead.id);
+          // Basic validation to prevent path traversal
+          if (/^[a-zA-Z0-9-_]+$/.test(leadId)) {
+            router.push(`/leads/${leadId}`);
+          } else {
+            router.push('/leads');
+          }
+        }, 1500);
       } else {
         throw new Error("Invalid response from server");
       }
@@ -106,11 +192,30 @@ export default function CreateLeadPage() {
       <div className="bg-yellow-400 p-4 mb-8">
         <h1 className="text-2xl font-bold">Create Account-Lead</h1>
       </div>
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          {error}
+
+      {/* Success Message */}
+      {success && (
+        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <p className="font-semibold">{success}</p>
+          {duplicate && (
+            <p className="text-sm mt-1">
+              Note: A similar lead already exists (Account: {duplicate.accountNumber || duplicate.id}).{' '}
+              <a href={`/leads/${duplicate.id}`} className="underline font-medium">
+                View existing lead
+              </a>
+            </p>
+          )}
         </div>
       )}
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p className="font-semibold">Error</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {/* Customer Details */}
         <div className="p-4 border rounded-md">
@@ -150,11 +255,15 @@ export default function CreateLeadPage() {
           <h2 className="text-xl font-semibold mb-4">Sales Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <select {...register("sales")} className="p-2 border rounded w-full">
-                <option value="">* Select Sales Rep</option>
-                <option value="Seksan Dujdevireoj">Seksan Dujdevireoj</option>
-                <option value="Jane Doe">Jane Doe</option>
-                <option value="John Smith">John Smith</option>
+              <select {...register("sales")} className="p-2 border rounded w-full" disabled={loadingSales}>
+                <option value="">
+                  {loadingSales ? "Loading sales reps..." : "* Select Sales Rep"}
+                </option>
+                {salesUsers.map((user) => (
+                  <option key={user.id} value={user.name || user.email}>
+                    {user.name || user.email}
+                  </option>
+                ))}
               </select>
               {errors.sales && <p className="text-red-500 text-sm">{errors.sales.message}</p>}
             </div>

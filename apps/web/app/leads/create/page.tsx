@@ -4,6 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+const base = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 const leadSchema = z.object({
   accountLead: z.string().optional(),
@@ -25,6 +28,9 @@ const leadSchema = z.object({
 
 export default function CreateLeadPage() {
   const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -37,10 +43,62 @@ export default function CreateLeadPage() {
   });
 
   const onSubmit = async (data) => {
-    // TODO: Connect to API endpoint
-    console.log("Form Data:", data);
-    alert("Lead created successfully! (placeholder)");
-    router.push("/leads");
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const token = localStorage.getItem("adminToken");
+      if (!token) {
+        window.location.href = "/admin/login";
+        return;
+      }
+
+      // Map form data to API format
+      const payload = {
+        customerId: data.accountLead || 'manual',
+        companyName: data.company,
+        contactName: data.contactName,
+        contactPhone: data.contactPhone,
+        mobilePhone: data.mobilePhone,
+        email: data.email || undefined,
+        contactAt: data.contactDate || undefined,
+        source: data.channel || data.adType,
+        salesId: data.sales, // Note: This should ideally be mapped to actual user ID
+        status: data.jobStatus,
+        followUpAt: data.followUpDate || undefined,
+        detail: data.jobDetail,
+        productType: data.productType,
+        adType: data.adType,
+        remark: data.remark,
+      };
+
+      const res = await fetch(`${base}/api/admin/crm/leads`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to create lead: ${res.statusText}`);
+      }
+
+      const result = await res.json();
+
+      if (result?.lead?.id) {
+        alert("Lead created successfully!");
+        router.push(`/leads/${result.lead.id}`);
+      } else {
+        throw new Error("Invalid response from server");
+      }
+    } catch (err) {
+      console.error("Error creating lead:", err);
+      setError(err instanceof Error ? err.message : "Failed to create lead");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -48,6 +106,11 @@ export default function CreateLeadPage() {
       <div className="bg-yellow-400 p-4 mb-8">
         <h1 className="text-2xl font-bold">Create Account-Lead</h1>
       </div>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
         {/* Customer Details */}
         <div className="p-4 border rounded-md">
@@ -143,11 +206,11 @@ export default function CreateLeadPage() {
         </div>
 
         <div className="flex justify-end space-x-4">
-          <button type="button" onClick={() => router.back()} className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded">
+          <button type="button" onClick={() => router.back()} className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-2 px-4 rounded" disabled={isSubmitting}>
             Cancel
           </button>
-          <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            Save
+          <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded disabled:opacity-50 disabled:cursor-not-allowed" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save"}
           </button>
         </div>
       </form>
